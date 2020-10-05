@@ -1,0 +1,63 @@
+<launch>
+
+  <arg name="map_frame"   value="map"/>
+  <arg name="ned_frame"   value="ned"/>
+  <arg name="odom_frame"   value="odom"/>
+  <arg name="base_frame"   value="base_footprint"/>
+
+  <!-- <node pkg="tms_rc_bot" type="latlng2pos" name="latlng_test" output="screen">
+    <param name="map_frame_name"   value="$(arg map_frame)"/>
+    <param name="odom_frame_name"   value="$(arg odom_frame)"/>
+    <param name="visualization_marker"   value="True"/>
+    <param name="fix_value"   value="1"/>
+    <param name="float_value"   value="0"/>
+    <param name="origin_lat"   value="33.596056000924236"/>
+    <param name="origin_lng"   value="130.21963880282223"/>
+    <param name="scale_offset"   value="0.8880907027565559"/>
+    <param name="angle_offset"   value="0.05423972231881774"/>
+    <param name="solutions_flag"   value="all"/>
+
+    <param name="odom_topic_name"   value="latlng_odom"/>
+    <param name="nav_sat_fix_topic_name"   value="/qzss_navsatfix"/>
+  </node> -->
+  <node pkg="bot_navigation" type="latlng2pos" name="latlng_test" output="screen">
+    <param name="map_frame_name"   value="$(arg map_frame)"/>
+    <param name="odom_frame_name"   value="$(arg odom_frame)"/>
+    <param name="visualization_marker"   value="True"/>
+    <param name="fix_value"   value="3"/>
+    <param name="float_value"   value="2"/>
+    <!-- <param name="origin_lat"   value="33.0875533553"/>
+    <param name="origin_lng"   value="129.79030922"/> -->
+     <!-- <param name="origin_lat"   value="33.5955422826"/>
+    <param name="origin_lng"   value="130.2190076182"/> -->
+     <param name="origin_lat"   value="33.59554271426774"/>
+    <param name="origin_lng"   value="130.21900769548205"/>
+     <!-- <param name="origin_lat"   value="33.5996449268"/>
+    <param name="origin_lng"   value="130.229995158"/> -->
+    <!-- <param name="scale_offset"   value="1.05"/>
+    <param name="angle_offset"   value="-5.5831618"/> -->
+    <!-- <param name="scale_offset"   value="0.9083945398"/>
+    <param name="angle_offset"   value="-6.98457564080407"/> -->
+    <!-- <param name="scale_offset"   value="1.0"/> -->
+    <!-- <param name="angle_offset"   value="42.7663829041"/> -->
+    <!-- <param name="scale_offset"   value="1.0006045624375026"/> -->
+    <!-- <param name="angle_offset"   value="42.76352551328607"/> -->
+    <!-- <param name="scale_offset"   value="0.9961641111969712"/> -->
+    <!-- <param name="angle_offset"   value="42.55997322943787 -->
+    <!-- <param name="scale_offset"   value="0.9961641111969712"/> -->
+    <!-- <param name="angle_offset"   value="42.55997322943787"/> -->
+    <!-- <param name="scale_offset"   value="0.9962747960982152"/> -->
+    <!-- <param name="angle_offset"   value="42.55997322943787"/> -->
+    <param name="scale_offset"   value="1.0002455054972383"/>
+    <param name="angle_offset"   value=" 42.84752885475223"/>
+
+    <param name="solutions_flag"   value="all"/>
+
+    <param name="odom_topic_name"   value="odometry/qzss"/>
+    <param name="nav_sat_fix_topic_name"   value="/fix"/>
+    <!-- <param name="nav_sat_fix_topic_name"   value="/qzss_navsatfix"/> -->
+  </node>
+
+
+
+</launch>
