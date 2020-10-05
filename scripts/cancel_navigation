@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+
+import rospy
+
+from actionlib_msgs.msg import GoalID
+
+import readchar
+
+if __name__ == '__main__':
+    rospy.init_node('cancel_navifgation')
+
+    rospy.loginfo('Start: Cancel Navigation')
+
+    pub_cancel = rospy.Publisher('move_base/cancel', GoalID, queue_size=1)
+
+    try:
+        while not rospy.is_shutdown():
+            kb = readchar.readkey()
+            print('Input: ' + str(kb) + ' ('  + str(ord(kb)) + ')')
+
+            if ord(kb) == 3: # Ctrl + C
+                #print(kb)
+                rospy.loginfo('Finish: Cancel Navigation')
+                break
+            else:
+                msg = GoalID()
+                msg.stamp = rospy.Time.now()
+                msg.id = ''
+                pub_cancel.publish(msg)
+
+                rospy.loginfo('Cancel !!')
+
+            #rospy.spin()
+
+    except rospy.ROSInterruptException:
+        rospy.loginfo('Finish: Cancel Navigation')
+
