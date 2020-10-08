@@ -94,7 +94,8 @@ class LatLng2Pos:
     ##############################################################
 
     odom                         = Odometry()
-    odom.header.stamp            = data.header.stamp
+    #odom.header.stamp            = data.header.stamp
+    odom.header.stamp            = rospy.Time.now()
     odom.header.frame_id         = self.map_frame
     odom.child_frame_id          = self.odom_frame
     
