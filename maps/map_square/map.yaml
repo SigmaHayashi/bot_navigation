@@ -1,4 +1,7 @@
-image: map2.png
+image: map2.png # Box
+#image: map4.png # Curve
+#image: map5.png # Trees
+
 resolution: 0.155
 # resolution: 0.005
 # origin: [-10.000000, -10.000000, 0.000000]

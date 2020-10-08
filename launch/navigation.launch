@@ -42,7 +42,7 @@
   <arg name="move_base" default="true"/>
   <node pkg="move_base" type="move_base" name="move_base" respawn="false" output="screen" if="$(arg move_base)">
     <remap from="odom"                            to="/guidebot/odometry/filtered"/>
-    <remap from="cmd_vel"                            to="/hapirobo/cmd_vel"/>
+    <remap from="cmd_vel"                            to="/cmd_vel"/>
     <param name="global_costmap/global_frame"     value="$(arg global_frame)"/>
     <param name="global_costmap/robot_base_frame" value="$(arg base_frame)"/>
     <param name="local_costmap/global_frame"      value="$(arg global_frame)"/>
@@ -58,9 +58,9 @@
  <env name="ROSCONSOLE_FORMAT" value="[${severity}][${thread}][${node}/${function}:${line}]: ${message}"/>
 
   <!-- Loomo odometry -->
-  <node pkg="bot_navigation" type="guidebot_odometry" name="guidebot_odometry" output="screen">
+  <node pkg="bot_navigation" type="lawnmower_odometry" name="lawnmower_odometry" output="screen">
     <param name="odom_topic_name" value="odometry/wheel"/>   
-    <param name="sub_odom_topic_name" value="/hapirobo/loomo_odd"/>  
+    <param name="sub_odom_topic_name" value="/odom"/>  
     <param name="odom_frame_id"   value="$(arg odom_frame)"/>
     <param name="base_frame_id"   value="$(arg base_frame)"/>
     <!--<param name="wheel_radius"    value="0.123"/>
