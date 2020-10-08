@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+
+import rospy
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import NavSatFix
+
+import math 
+import pyproj
+
+class Pos2LatLng:
+    def __init__(self):
+        #print('hoge')
+        self.wgs84 = pyproj.Proj(init='EPSG:4326')
+        self.rect6 = pyproj.Proj(init='EPSG:2444')
+
+        self.map_frame = rospy.get_param('~map_frame_name', 'map')
+        self.odom_frame = rospy.get_param('~odom_frame_name', 'odom')
+        #self.marker_flag = rospy.get_param('~visualization_marker', False)
+        self.fix_value = rospy.get_param('~fix_value', 1)
+        self.float_value = rospy.get_param('~float_value ', 0)
+
+        self.origin_lat = rospy.get_param('~origin_lat', 33.)
+        self.origin_lng = rospy.get_param('~origin_lng', 133.)
+        self.angle_offset = rospy.get_param('~angle_offset', 0.) * math.pi / 180.0
+        self.scale_offset = rospy.get_param('~scale_offset', 1.)
+
+        #self.odom_pub = rospy.Publisher(rospy.get_param('~odom_topic_name', 'odom'), Odometry, queue_size=10)
+        #if self.marker_flag == True:
+        #    self.marker_pub = rospy.Publisher(rospy.get_param('~marker_topic_name', 'gnss_position_marker'), Marker, queue_size=10)
+        #rospy.Subscriber(rospy.get_param('~nav_sat_fix_topic_name', 'fix'), NavSatFix, self.callback_latlng2pos, queue_size=10)
+        
+        self.pub_latlng = rospy.Publisher(rospy.get_param('~pub_topic_name', 'odometry/filtered_latlng'), NavSatFix, queue_size=10)
+        rospy.Subscriber(rospy.get_param('~sub_topic_name', 'odometry/filtered'), Odometry, self.callback_odom, queue_size=10)
+
+        self.x_origin, self.y_origin = pyproj.transform(self.wgs84, self.rect6, self.origin_lng, self.origin_lat)
+
+    def pos2latlng(self, x, y):
+        #x_origin, y_origin = pyproj.transform(self.wgs84, self.rect6, self.origin_lng, self.origin_lat)
+
+        tx = x / self.scale_offset
+        ty = y / self.scale_offset
+
+        #x_ref = x_origin + math.cos(self.angle_offset) * tx + math.sin(self.angle_offset) * ty
+        #y_ref = y_origin + math.cos(self.angle_offset) * ty - math.sin(self.angle_offset) * tx
+
+        x_ref = self.x_origin + math.cos(self.angle_offset) * tx + math.sin(self.angle_offset) * ty
+        y_ref = self.y_origin + math.cos(self.angle_offset) * ty - math.sin(self.angle_offset) * tx
+
+        lng, lat = pyproj.transform(self.rect6, self.wgs84, x_ref, y_ref)
+
+        print('(x, y)     = ({:.2f}, {:.2f})'.format(x, y))
+        print('(lat, lng) = ({}, {})'.format(lat, lng))
+        print('-----')
+
+        return lat, lng
+
+    def callback_odom(self, data):
+
+        lat, lng = self.pos2latlng(data.pose.pose.position.x, data.pose.pose.position.y)
+
+        latlng = NavSatFix()
+        #latlng.header.stamp = data.header.stamp
+        latlng.header.stamp = rospy.Time.now()
+        latlng.latitude = lat
+        latlng.longitude = lng
+
+        self.pub_latlng.publish(latlng)
+
+
+if __name__ == "__main__":
+    rospy.init_node('Pos2LatLng', anonymous=True)
+    rospy.loginfo("Pos2LatLng node Start")
+
+    try:
+        Pos2LatLng()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        rospy.loginfo("Pos2LatLng node Finish")
