@@ -14,8 +14,8 @@ class Pos2LatLng:
         self.wgs84 = pyproj.Proj(init='EPSG:4326')
         self.rect6 = pyproj.Proj(init='EPSG:2444')
 
-        self.map_frame = rospy.get_param('~map_frame_name', 'map')
-        self.odom_frame = rospy.get_param('~odom_frame_name', 'odom')
+        #self.map_frame = rospy.get_param('~map_frame_name', 'map')
+        #self.odom_frame = rospy.get_param('~odom_frame_name', 'odom')
         #self.marker_flag = rospy.get_param('~visualization_marker', False)
         self.fix_value = rospy.get_param('~fix_value', 1)
         self.float_value = rospy.get_param('~float_value ', 0)
