@@ -39,7 +39,7 @@ DWAPlannerROS:
   #sim_time: 3 #delete by Hayashi
   sim_time: 3 #change by Hayashi
   #sim_granularity: 0.025 #delete by Hayashi
-  sim_granularity: 0.025 #change by Hayashi
+  sim_granularity: 0.1 #change by Hayashi
 
   #vx_samples: 3 #delete by Hayashi
   vx_samples: 3 #change by Hayashi
@@ -47,21 +47,25 @@ DWAPlannerROS:
   #vtheta_samples: 10 #delete by Hayashi
   vtheta_samples: 10 #change by Hayashi
   #controller_frequency: 10.0 #delete by Hayashi
-  controller_frequency: 10.0 #change by Hayashi
+  controller_frequency: 7.0 #change by Hayashi
   penalize_negative_x:  true
 
 # Trajectory Scoring Parameters
 
-  path_distance_bias: 32.0
+  path_distance_bias: 32.0 #delete by Hayashi
+  #path_distance_bias: 2.0 #change by Hayashi
 #   path_distance_bias: 1.0
-  goal_distance_bias: 24.0
+  goal_distance_bias: 24.0 #delete by Hayashi
+  #goal_distance_bias: 20.0 #change by Hayashi 20
 #   goal_distance_bias: 0.8
   #occdist_scale: 0.01
-  occdist_scale: 0.03
+  #occdist_scale: 0.03 #delete by Hayashi
+  occdist_scale: 0.08 #change by Hayashi 0.05
 #   occdist_scale: 3
 
-  forward_point_distance: 0.325 #delete by Hayashi
-  #forward_point_distance: 0.525 #change by Hayashi
+  #forward_point_distance: 0.325 #delete by Hayashi
+  forward_point_distance: 1.0 #change by Hayashi
+  #forward_point_distance: 1.0
 
   stop_time_buffer: 0.2
   #scaling_speed: 0.05 #delete by Hayashi
