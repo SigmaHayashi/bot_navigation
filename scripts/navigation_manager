@@ -1,0 +1,162 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+
+import rospy
+
+from move_base_msgs.msg import MoveBaseAction, MoveBaseActionGoal, MoveBaseGoal
+import actionlib
+from geometry_msgs.msg import Vector3, Quaternion
+import tf
+import math
+
+from actionlib_msgs.msg import GoalID, GoalStatusArray
+
+from lawnmower.msg import nav_manager_command, nav_manager_status
+
+
+class NavigationManager():
+    def __init__(self):
+        print("Init NavigationManager")
+
+        self.goal_count = 0
+        self.goal_list = []
+
+        self.recent_goal_id = ''
+        
+        self.status = 0
+        self.status_backup = 0
+        # 0 : stop
+        # 1 : pause
+        # 2 : moving
+        # 3 : turning
+
+        # 一度ゴール方向を向く（その場旋回）（とりあえず保留）
+        # その後，動き出す
+
+        self.action_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+        while not self.action_client.wait_for_server(rospy.Duration.from_sec(5.0)):
+            rospy.loginfo('Waiting for Action Server...')
+
+        #self.pub_cancel = rospy.Publisher('move_base/cancel', GoalID, queue_size=1)
+
+        self.pub_status = rospy.Publisher('nav_manager/status', nav_manager_status, queue_size=1)
+
+        rospy.Subscriber('nav_manager/command', nav_manager_command, self.callback_command, queue_size=1)
+
+        rospy.Subscriber('move_base/status', GoalStatusArray, self.callback_move_base_status, queue_size=1)
+        rospy.Subscriber('move_base/goal', MoveBaseActionGoal, self.callback_move_base_goal, queue_size=1)
+
+
+    def callback_command(self, data):
+        rospy.loginfo('Received: /nav_manager/command')
+
+        if data.command == 'start':
+            rospy.loginfo('command: start')
+            self.goal_list = []
+            i = 0
+            for pos in data.position_list:
+                self.goal_list.append(Vector3(pos.x, pos.y, 0.0))
+                rospy.loginfo('Received Goal [{}]: (x={:.2f}, y={:.2f})'.format(i, pos.x, pos.y))
+                i = i + 1
+
+            self.goal_count = 0
+            self.send_goal(self.goal_count)
+            self.action_client.wait_for_result(rospy.Duration.from_sec(0.5))
+
+            self.status = 2
+
+        elif data.command == 'stop':
+            rospy.loginfo('command: stop')
+
+            #msg = GoalID()
+            #msg.stamp = rospy.Time.now()
+            #msg.id = ''
+            #self.pub_cancel.publish(msg)
+            self.action_client.cancel_all_goals()
+
+            self.goal_list = []
+            self.goal_count = 0
+            self.status = 0
+
+        elif data.command == 'pause':
+            rospy.loginfo('command: pause')
+
+            if self.status == 2 or self.status == 3: # 動いているときだけ
+                #msg = GoalID()
+                #msg.stamp = rospy.Time.now()
+                #msg.id = ''
+                #self.pub_cancel.publish(msg)
+                self.action_client.cancel_all_goals()
+
+                self.status_backup = self.status
+                self.status = 1
+
+        elif data.command == 'resume':
+            rospy.loginfo('command: resume')
+
+            if self.status == 1: # ポーズ中だけ
+                self.send_goal(self.goal_count)
+                self.status = self.status_backup
+
+        else:
+            rospy.logwarn('command not defined: ' + data.command)
+
+
+    def send_goal(self, count):
+        goal = MoveBaseGoal()
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.header.frame_id = 'map'
+
+        goal.target_pose.pose.position = self.goal_list[count]
+
+        #qua = tf.transformations.quaternion_from_euler(0.0, 0.0, 0.0)
+        if count == len(self.goal_list) - 1:
+            yaw = 0.0
+        else:
+            yaw = math.atan2(self.goal_list[count+1].y - self.goal_list[count].y, self.goal_list[count+1].x - self.goal_list[count].x)
+        qua = tf.transformations.quaternion_from_euler(0.0, 0.0, yaw)
+        goal.target_pose.pose.orientation = Quaternion(x=qua[0], y=qua[1], z=qua[2], w=qua[3])
+
+        self.action_client.send_goal(goal)
+        #self.action_client.wait_for_result(rospy.Duration.from_sec(5.0))
+        #self.action_client.wait_for_result(rospy.Duration.from_sec(0.5))
+
+        #print("Goal State: " + str(self.action_client.get_state()))
+
+        rospy.loginfo('Send Goal [{}]: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(count, self.goal_list[count].x, self.goal_list[count].y, yaw))
+        #self.last_goal_published = goal.target_pose.header.stamp
+
+
+    def callback_move_base_status(self, data):
+        #rospy.loginfo('Received: /move_base/status')
+        if len(data.status_list) > 0 and (self.status == 2 or self.status == 3):
+            #if data.status_list[len(data.status_list)-1].status == 3:
+            #if data.status_list[len(data.status_list)-1].status == 3 and data.status_list[len(data.status_list)-1].goal_id.stamp == self.last_goal_published:
+            for status in data.status_list:
+                if status.goal_id.id == self.recent_goal_id and status.status == 3:
+                    rospy.loginfo('Reached Goal')
+                    
+                    if self.goal_count == len(self.goal_list) - 1:
+                        self.goal_count = 0
+                        self.status = 0
+                        rospy.loginfo('Finish')
+                    else:
+                        self.goal_count = self.goal_count + 1
+                        self.send_goal(self.goal_count)
+                        
+                        #self.action_client.wait_for_result(rospy.Duration.from_sec(0.5))
+    
+    
+    def callback_move_base_goal(self, data):
+        self.recent_goal_id = data.goal_id.id
+
+
+if __name__ == "__main__":
+    rospy.init_node('navigation_manager', anonymous=True)
+    rospy.loginfo("NavigationManager node Start")
+
+    try:
+        NavigationManager()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
