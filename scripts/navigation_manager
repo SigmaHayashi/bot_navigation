@@ -16,7 +16,7 @@ from lawnmower.msg import nav_manager_command, nav_manager_status
 
 class NavigationManager():
     def __init__(self):
-        print("Init NavigationManager")
+        rospy.loginfo("Init NavigationManager")
 
         self.goal_count = 0
         self.goal_list = []
@@ -28,14 +28,15 @@ class NavigationManager():
         # 0 : stop
         # 1 : pause
         # 2 : moving
-        # 3 : turning
+        # 3 : moving (rviz)
 
-        # 一度ゴール方向を向く（その場旋回）（とりあえず保留）
+        # 一度ゴール方向を向く（その場旋回）（とりあえず保留）（やっぱり使わない）
         # その後，動き出す
 
         self.action_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
-        while not self.action_client.wait_for_server(rospy.Duration.from_sec(5.0)):
+        while not self.action_client.wait_for_server(rospy.Duration.from_sec(3.0)):
             rospy.loginfo('Waiting for Action Server...')
+        rospy.loginfo('Connected to Action Server')
 
         #self.pub_cancel = rospy.Publisher('move_base/cancel', GoalID, queue_size=1)
 
@@ -129,34 +130,82 @@ class NavigationManager():
 
     def callback_move_base_status(self, data):
         #rospy.loginfo('Received: /move_base/status')
-        if len(data.status_list) > 0 and (self.status == 2 or self.status == 3):
-            #if data.status_list[len(data.status_list)-1].status == 3:
-            #if data.status_list[len(data.status_list)-1].status == 3 and data.status_list[len(data.status_list)-1].goal_id.stamp == self.last_goal_published:
-            for status in data.status_list:
-                if status.goal_id.id == self.recent_goal_id and status.status == 3:
-                    rospy.loginfo('Reached Goal')
-                    
-                    if self.goal_count == len(self.goal_list) - 1:
-                        self.goal_count = 0
-                        self.status = 0
-                        rospy.loginfo('Finish')
-                    else:
-                        self.goal_count = self.goal_count + 1
-                        self.send_goal(self.goal_count)
+        #if len(data.status_list) > 0 and (self.status == 2 or self.status == 3):
+        if len(data.status_list) > 0:
+            if self.status == 2:
+                for status in data.status_list:
+                    if status.goal_id.id == self.recent_goal_id and status.status == 3:
+                        rospy.loginfo('Reached Goal')
                         
-                        #self.action_client.wait_for_result(rospy.Duration.from_sec(0.5))
+                        if self.goal_count == len(self.goal_list) - 1:
+                            self.goal_count = 0
+                            self.status = 0
+                            rospy.loginfo('Finish')
+                        else:
+                            self.goal_count = self.goal_count + 1
+                            self.send_goal(self.goal_count)
+                            
+                        break
+
+            elif self.status == 3:
+                #stamp_list = []
+                stamp_max = 0
+                for status in data.status_list:
+                    #stamp_list.append(float(status.goal_id.id.split('-')[2]))
+                    stamp = float(status.goal_id.id.split('-')[2])
+                    if stamp_max < stamp:
+                        stamp_max = stamp
+                        #target_id = status.goal_id.id
+                        stamp_max_status = status.status
+                #print(stamp_list)
+                if stamp_max_status == 3:
+                    rospy.loginfo('Reached Goal')
+
+                    self.status = 0
+                    rospy.loginfo('Finish')
     
     
     def callback_move_base_goal(self, data):
         self.recent_goal_id = data.goal_id.id
+
+        if data.goal_id.id == '':
+            q = data.goal.target_pose.pose.orientation
+            goal = Vector3(
+                data.goal.target_pose.pose.position.x,
+                data.goal.target_pose.pose.position.y,
+                tf.transformations.euler_from_quaternion((q.x, q.y, q.z, q.w))[2])
+            self.goal_list = []
+            self.goal_list.append(goal)
+            self.goal_count = 0
+            self.status = 3
+
+
+    def publish_status(self):
+        msg = nav_manager_status()
+        msg.header.stamp = rospy.Time.now()
+        
+        if self.status == 0:
+            msg.status = 'stop'
+        elif self.status == 1:
+            msg.status = 'pause'
+        elif self.status == 2 or self.status == 3:
+            msg.status = 'run'
+
+        self.pub_status.publish(msg)
 
 
 if __name__ == "__main__":
     rospy.init_node('navigation_manager', anonymous=True)
     rospy.loginfo("NavigationManager node Start")
 
+    rate = rospy.Rate(10)
+
     try:
-        NavigationManager()
-        rospy.spin()
+        nav_manager = NavigationManager()
+        #rospy.spin()
+        while not rospy.is_shutdown():
+            nav_manager.publish_status()
+            rate.sleep()
+
     except rospy.ROSInterruptException:
         pass
