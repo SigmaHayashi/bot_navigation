@@ -8,6 +8,7 @@ import actionlib
 from geometry_msgs.msg import Vector3, Quaternion
 import tf
 import math
+from nav_msgs.msg import Odometry
 
 from actionlib_msgs.msg import GoalID, GoalStatusArray
 
@@ -29,16 +30,20 @@ class NavigationManager():
         # 1 : pause
         # 2 : moving
         # 3 : moving (rviz)
+        # 4 : recovery
 
-        # 一度ゴール方向を向く（その場旋回）（とりあえず保留）（やっぱり使わない）
-        # その後，動き出す
+        self.nav_start_time = rospy.Time.now()
+        self.nav_start_odom = Odometry()
+        self.now_odom = Odometry()
+        self.recovery_flag = False
+        self.recovery_start_time = 10.0
+        self.recovery_start_pos_thres = 0.5
+        self.recovery_start_rot_thres = math.radians(10.0)
 
         self.action_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         while not self.action_client.wait_for_server(rospy.Duration.from_sec(3.0)):
             rospy.loginfo('Waiting for Action Server...')
         rospy.loginfo('Connected to Action Server')
-
-        #self.pub_cancel = rospy.Publisher('move_base/cancel', GoalID, queue_size=1)
 
         self.pub_status = rospy.Publisher('nav_manager/status', nav_manager_status, queue_size=1)
 
@@ -46,6 +51,8 @@ class NavigationManager():
 
         rospy.Subscriber('move_base/status', GoalStatusArray, self.callback_move_base_status, queue_size=1)
         rospy.Subscriber('move_base/goal', MoveBaseActionGoal, self.callback_move_base_goal, queue_size=1)
+
+        rospy.Subscriber('odometry/filtered', Odometry, self.callback_odometry_filtered, queue_size=10)
 
 
     def callback_command(self, data):
@@ -69,10 +76,6 @@ class NavigationManager():
         elif data.command == 'stop':
             rospy.loginfo('command: stop')
 
-            #msg = GoalID()
-            #msg.stamp = rospy.Time.now()
-            #msg.id = ''
-            #self.pub_cancel.publish(msg)
             self.action_client.cancel_all_goals()
 
             self.goal_list = []
@@ -83,14 +86,12 @@ class NavigationManager():
             rospy.loginfo('command: pause')
 
             if self.status == 2 or self.status == 3: # 動いているときだけ
-                #msg = GoalID()
-                #msg.stamp = rospy.Time.now()
-                #msg.id = ''
-                #self.pub_cancel.publish(msg)
                 self.action_client.cancel_all_goals()
 
                 self.status_backup = self.status
                 self.status = 1
+            else:
+                rospy.logwarn('Not Moving...')
 
         elif data.command == 'resume':
             rospy.loginfo('command: resume')
@@ -98,6 +99,8 @@ class NavigationManager():
             if self.status == 1: # ポーズ中だけ
                 self.send_goal(self.goal_count)
                 self.status = self.status_backup
+            else:
+                rospy.logwarn('Not Pausing')
 
         else:
             rospy.logwarn('command not defined: ' + data.command)
@@ -110,7 +113,6 @@ class NavigationManager():
 
         goal.target_pose.pose.position = self.goal_list[count]
 
-        #qua = tf.transformations.quaternion_from_euler(0.0, 0.0, 0.0)
         if count == len(self.goal_list) - 1:
             yaw = 0.0
         else:
@@ -119,18 +121,12 @@ class NavigationManager():
         goal.target_pose.pose.orientation = Quaternion(x=qua[0], y=qua[1], z=qua[2], w=qua[3])
 
         self.action_client.send_goal(goal)
-        #self.action_client.wait_for_result(rospy.Duration.from_sec(5.0))
-        #self.action_client.wait_for_result(rospy.Duration.from_sec(0.5))
-
-        #print("Goal State: " + str(self.action_client.get_state()))
 
         rospy.loginfo('Send Goal [{}]: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(count, self.goal_list[count].x, self.goal_list[count].y, yaw))
-        #self.last_goal_published = goal.target_pose.header.stamp
 
 
     def callback_move_base_status(self, data):
         #rospy.loginfo('Received: /move_base/status')
-        #if len(data.status_list) > 0 and (self.status == 2 or self.status == 3):
         if len(data.status_list) > 0:
             if self.status == 2:
                 for status in data.status_list:
@@ -148,27 +144,38 @@ class NavigationManager():
                         break
 
             elif self.status == 3:
-                #stamp_list = []
                 stamp_max = 0
                 for status in data.status_list:
-                    #stamp_list.append(float(status.goal_id.id.split('-')[2]))
                     stamp = float(status.goal_id.id.split('-')[2])
                     if stamp_max < stamp:
                         stamp_max = stamp
-                        #target_id = status.goal_id.id
                         stamp_max_status = status.status
-                #print(stamp_list)
                 if stamp_max_status == 3:
                     rospy.loginfo('Reached Goal')
 
                     self.status = 0
                     rospy.loginfo('Finish')
+
+            elif self.status == 4:
+                for status in data.status_list:
+                    if status.goal_id.id == self.recent_goal_id and status.status == 3:
+                        rospy.loginfo('Finish Recovery')
+
+                        self.send_goal(self.goal_count)
+                        self.status = self.status_backup
+
     
     
     def callback_move_base_goal(self, data):
         self.recent_goal_id = data.goal_id.id
 
+        self.nav_start_time = data.header.stamp
+        self.nav_start_odom = self.now_odom
+
         if data.goal_id.id == '':
+            if self.status == 2:
+                rospy.loginfo('Canceled Goal List')
+                
             q = data.goal.target_pose.pose.orientation
             goal = Vector3(
                 data.goal.target_pose.pose.position.x,
@@ -178,6 +185,66 @@ class NavigationManager():
             self.goal_list.append(goal)
             self.goal_count = 0
             self.status = 3
+            
+            rospy.loginfo('Manual Goal: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(goal.x, goal.y, goal.z))
+
+
+    def callback_odometry_filtered(self, data):
+        self.now_odom = data
+        
+        #print(rospy.Time.now() - self.nav_start_time)
+        #if rospy.Time.now() - self.nav_start_time > rospy.Duration(3.0):
+        #    print('3.0s')
+
+        if not self.recovery_flag and (self.status == 2 or self.status == 3):
+        #if not self.recovery_flag and (self.status == 2 or self.status == 3 or self.status == 4):
+            if rospy.Time.now() - self.nav_start_time > rospy.Duration(self.recovery_start_time):
+                #rospy.loginfo('stopping?')
+                pos_dif = [
+                    abs(self.now_odom.pose.pose.position.x - self.nav_start_odom.pose.pose.position.x),
+                    abs(self.now_odom.pose.pose.position.y - self.nav_start_odom.pose.pose.position.y),
+                    0.0
+                ]
+                pos_dif_norm = tf.transformations.vector_norm(pos_dif)
+
+                qua_start = self.nav_start_odom.pose.pose.orientation
+                qua_start = [qua_start.x, qua_start.y, qua_start.z, qua_start.w]
+                qua_now = self.now_odom.pose.pose.orientation
+                qua_now = [qua_now.x, qua_now.y, qua_now.z, qua_now.w]
+                qua_dif = tf.transformations.quaternion_multiply(qua_now, tf.transformations.quaternion_inverse(qua_start))
+                eul_dif = tf.transformations.euler_from_quaternion(qua_dif)
+
+                if pos_dif_norm < self.recovery_start_pos_thres and abs(eul_dif[2]) < self.recovery_start_rot_thres:
+                    self.recovery_flag = True
+                    rospy.loginfo('pos_dif_norm: {:.2f}, eul_dif.z: {:.2f}'.format(pos_dif_norm, eul_dif[2]))
+                    rospy.logwarn('Recovery Action')
+
+
+    def recovery_action(self):
+        #self.action_client.cancel_all_goals()
+        #if self.status != 4:
+        #    self.status_backup = self.status
+
+        self.status_backup = self.status
+        self.status = 4
+
+        goal = MoveBaseGoal()
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.header.frame_id = 'map'
+
+        goal.target_pose.pose.position = self.now_odom.pose.pose.position
+
+        qua_now = self.now_odom.pose.pose.orientation
+        qua_now = [qua_now.x, qua_now.y, qua_now.z, qua_now.w]
+        qua_rot = tf.transformations.quaternion_from_euler(0.0, 0.0, math.pi)
+        qua_target = tf.transformations.quaternion_multiply(qua_now, qua_rot)
+        goal.target_pose.pose.orientation = Quaternion(qua_target[0], qua_target[1], qua_target[2], qua_target[3])
+
+        self.action_client.send_goal(goal)
+
+        #rospy.loginfo('Send Goal [{}]: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(count, self.goal_list[count].x, self.goal_list[count].y, yaw))
+
+        self.recovery_flag = False
 
 
     def publish_status(self):
@@ -188,7 +255,7 @@ class NavigationManager():
             msg.status = 'stop'
         elif self.status == 1:
             msg.status = 'pause'
-        elif self.status == 2 or self.status == 3:
+        elif self.status == 2 or self.status == 3 or self.status == 4:
             msg.status = 'run'
 
         self.pub_status.publish(msg)
@@ -205,6 +272,10 @@ if __name__ == "__main__":
         #rospy.spin()
         while not rospy.is_shutdown():
             nav_manager.publish_status()
+
+            if nav_manager.recovery_flag:
+                nav_manager.recovery_action()
+
             rate.sleep()
 
     except rospy.ROSInterruptException:
