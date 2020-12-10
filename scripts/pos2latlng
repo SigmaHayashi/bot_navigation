@@ -17,8 +17,8 @@ class Pos2LatLng:
         #self.map_frame = rospy.get_param('~map_frame_name', 'map')
         #self.odom_frame = rospy.get_param('~odom_frame_name', 'odom')
         #self.marker_flag = rospy.get_param('~visualization_marker', False)
-        self.fix_value = rospy.get_param('~fix_value', 1)
-        self.float_value = rospy.get_param('~float_value ', 0)
+        #self.fix_value = rospy.get_param('~fix_value', 1)
+        #self.float_value = rospy.get_param('~float_value ', 0)
 
         self.origin_lat = rospy.get_param('~origin_lat', 33.)
         self.origin_lng = rospy.get_param('~origin_lng', 133.)

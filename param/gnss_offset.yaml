@@ -1,0 +1,19 @@
+
+# experiment basic
+#origin_lat: 33.59554271426774
+#origin_lng: 130.21900769548205
+origin_lat: 33.595542
+origin_lng: 130.219007
+angle_offset: 42.84752885475223
+##scale_offset: 1.0002455054972383
+scale_offset: 1.000
+
+# demo 20201028
+#origin_lat: 33.598533
+#origin_lng: 130.223897
+#angle_offset: -108.5
+#scale_offset: 1.000
+
+
+fix_value: 3
+float_value: 2

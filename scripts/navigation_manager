@@ -36,9 +36,10 @@ class NavigationManager():
         self.nav_start_odom = Odometry()
         self.now_odom = Odometry()
         self.recovery_flag = False
-        self.recovery_start_time = 10.0
-        self.recovery_start_pos_thres = 0.5
-        self.recovery_start_rot_thres = math.radians(10.0)
+        
+        self.recovery_start_time = rospy.get_param('~recovery_start_time', 10.0)
+        self.recovery_start_pos_thres = rospy.get_param('~recovery_start_pos_thres', 0.5)
+        self.recovery_start_rot_thres = math.radians(rospy.get_param('~recovery_start_rot_thres', 10.0))
 
         self.action_client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         while not self.action_client.wait_for_server(rospy.Duration.from_sec(3.0)):

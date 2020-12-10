@@ -29,7 +29,7 @@ DWAPlannerROS:
   acc_lim_y: 0.0
 
 # Goal Tolerance Parameters
-  xy_goal_tolerance: 0.3 #change by Hayashi
+  xy_goal_tolerance: 0.5 #change by Hayashi
   # xy_goal_tolerance: 0.6
   yaw_goal_tolerance: 0.1
   # yaw_goal_tolerance: 6.28319
@@ -39,10 +39,11 @@ DWAPlannerROS:
   #sim_time: 3 #delete by Hayashi
   sim_time: 3 #change by Hayashi
   #sim_granularity: 0.025 #delete by Hayashi
-  sim_granularity: 0.1 #change by Hayashi
+  #sim_granularity: 0.1 #change by Hayashi
+  sim_granularity: 0.25
 
   #vx_samples: 3 #delete by Hayashi
-  vx_samples: 3 #change by Hayashi
+  vx_samples: 4 #change by Hayashi
   vy_samples: 0
   #vtheta_samples: 10 #delete by Hayashi
   vtheta_samples: 10 #change by Hayashi
@@ -52,11 +53,12 @@ DWAPlannerROS:
 
 # Trajectory Scoring Parameters
 
-  path_distance_bias: 32.0 #delete by Hayashi
+  #path_distance_bias: 32.0 #delete by Hayashi
   #path_distance_bias: 2.0 #change by Hayashi
+  path_distance_bias: 40.0 #change by Hayashi
 #   path_distance_bias: 1.0
-  goal_distance_bias: 24.0 #delete by Hayashi
-  #goal_distance_bias: 20.0 #change by Hayashi 20
+  #goal_distance_bias: 24.0 #delete by Hayashi
+  goal_distance_bias: 20.0 #change by Hayashi 20
 #   goal_distance_bias: 0.8
   #occdist_scale: 0.01
   #occdist_scale: 0.03 #delete by Hayashi
