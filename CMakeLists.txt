@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   nav_msgs
   visualization_msgs
+
+  message_generation
   
   ## ublox_msgs
 )
@@ -23,14 +25,21 @@ find_package(Boost REQUIRED COMPONENTS thread)
 #  nucleo_serial.msg
 #)
 
+add_message_files(
+  FILES
+  nav_manager_command.msg
+  nav_manager_status.msg
+)
+
 #add_service_files(
 #  FILES
 #  nav_command.srv
 #)
 
 generate_messages(
-   DEPENDENCIES
-   std_msgs
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
 )
 
 catkin_package(

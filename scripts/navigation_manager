@@ -12,7 +12,8 @@ from nav_msgs.msg import Odometry
 
 from actionlib_msgs.msg import GoalID, GoalStatusArray
 
-from lawnmower.msg import nav_manager_command, nav_manager_status
+#from lawnmower.msg import nav_manager_command, nav_manager_status
+from bot_navigation.msg import nav_manager_command, nav_manager_status
 
 
 class NavigationManager():
@@ -51,7 +52,9 @@ class NavigationManager():
         rospy.Subscriber('nav_manager/command', nav_manager_command, self.callback_command, queue_size=1)
 
         rospy.Subscriber('move_base/status', GoalStatusArray, self.callback_move_base_status, queue_size=1)
+        
         rospy.Subscriber('move_base/goal', MoveBaseActionGoal, self.callback_move_base_goal, queue_size=1)
+        self.rviz_goal = Vector3()
 
         rospy.Subscriber('odometry/filtered', Odometry, self.callback_odometry_filtered, queue_size=10)
 
@@ -125,11 +128,33 @@ class NavigationManager():
 
         rospy.loginfo('Send Goal [{}]: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(count, self.goal_list[count].x, self.goal_list[count].y, yaw))
 
+        #self.nav_start_time = rospy.Time.now()
+        #self.nav_start_odom = self.now_odom
+
 
     def callback_move_base_status(self, data):
         #rospy.loginfo('Received: /move_base/status')
         if len(data.status_list) > 0:
-            if self.status == 2:
+
+            stamp_max_status = data.status_list[0]
+            for status in data.status_list:
+                if status.goal_id.stamp - stamp_max_status.goal_id.stamp > rospy.Duration(0.0):
+                    stamp_max_status = status
+
+            if self.status == 0: # stop中にrvizからゴールを受け取った場合
+                if stamp_max_status.goal_id.id.split('-')[0] != rospy.get_name() and stamp_max_status.status != 3:
+
+                    self.recent_goal_id = stamp_max_status.goal_id.id
+
+                    self.goal_list = []
+                    self.goal_count = 0
+                    self.status = 3
+                    
+                    #self.nav_start_time = rospy.Time.now()
+                    #self.nav_start_odom = self.now_odom
+
+            elif self.status == 2: # moving
+                '''
                 for status in data.status_list:
                     if status.goal_id.id == self.recent_goal_id and status.status == 3:
                         rospy.loginfo('Reached Goal')
@@ -143,8 +168,44 @@ class NavigationManager():
                             self.send_goal(self.goal_count)
                             
                         break
+                '''
+                if stamp_max_status.goal_id.id == self.recent_goal_id:
+                    if stamp_max_status.status == 3: # ゴールに到達
+                        rospy.loginfo('Reached Goal')
 
-            elif self.status == 3:
+                        self.recent_goal_id = ''
+
+                        if self.goal_count == len(self.goal_list) - 1: # 最後のゴールに到達したとき
+                            self.goal_count = 0
+                            self.status = 0
+                            rospy.loginfo('Finish')
+                        else: # 次のゴールを設定
+                            self.goal_count = self.goal_count + 1
+                            self.send_goal(self.goal_count)
+                else:
+                    self.recent_goal_id = stamp_max_status.goal_id.id
+
+                    if stamp_max_status.goal_id.id.split('-')[0] != rospy.get_name(): # navigation_manager以外が設定したゴールの場合
+                        rospy.loginfo('Canceled Goal List')
+
+                        #q = data.goal.target_pose.pose.orientation
+                        #goal = Vector3(
+                        #    data.goal.target_pose.pose.position.x,
+                        #    data.goal.target_pose.pose.position.y,
+                        #    tf.transformations.euler_from_quaternion((q.x, q.y, q.z, q.w))[2])
+                        self.goal_list = []
+                        #self.goal_list.append(goal)
+                        self.goal_count = 0
+                        self.status = 3
+                        
+                        #self.nav_start_time = rospy.Time.now()
+                        #self.nav_start_odom = self.now_odom
+                        
+                        #rospy.loginfo('Manual Goal: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(goal.x, goal.y, goal.z))
+
+
+            elif self.status == 3: # moving (rviz)
+                '''
                 stamp_max = 0
                 for status in data.status_list:
                     stamp = float(status.goal_id.id.split('-')[2])
@@ -156,18 +217,39 @@ class NavigationManager():
 
                     self.status = 0
                     rospy.loginfo('Finish')
+                '''
+
+                if stamp_max_status.status == 3:
+                    rospy.loginfo('Reached Goal')
+
+                    self.status = 0
+                    rospy.loginfo('Finish')
+
 
             elif self.status == 4:
+                '''
                 for status in data.status_list:
                     if status.goal_id.id == self.recent_goal_id and status.status == 3:
                         rospy.loginfo('Finish Recovery')
 
                         self.send_goal(self.goal_count)
                         self.status = self.status_backup
+                '''
+                if stamp_max_status.status == 3:
+                    rospy.loginfo('Finish Recovery')
+
+                    self.status = self.status_backup
+                    
+                    if self.status == 3:
+                        self.goal_list = []
+                        self.goal_count = 0
+                        self.goal_list.append(self.rviz_goal)
+
+                    self.send_goal(self.goal_count)
 
     
-    
     def callback_move_base_goal(self, data):
+        '''
         self.recent_goal_id = data.goal_id.id
 
         self.nav_start_time = data.header.stamp
@@ -188,8 +270,19 @@ class NavigationManager():
             self.status = 3
             
             rospy.loginfo('Manual Goal: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(goal.x, goal.y, goal.z))
-
-
+        '''
+        self.nav_start_time = data.header.stamp
+        self.nav_start_odom = self.now_odom
+        
+        if data.goal_id.id == '':
+            q = data.goal.target_pose.pose.orientation
+            self.rviz_goal = Vector3(
+                data.goal.target_pose.pose.position.x,
+                data.goal.target_pose.pose.position.y,
+                tf.transformations.euler_from_quaternion((q.x, q.y, q.z, q.w))[2])
+            
+            rospy.loginfo('Manual Goal: (x={:.2f}, y={:.2f}, yaw={:.2f})'.format(self.rviz_goal.x, self.rviz_goal.y, self.rviz_goal.z))
+    
     def callback_odometry_filtered(self, data):
         self.now_odom = data
         
