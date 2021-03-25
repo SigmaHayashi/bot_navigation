@@ -30,20 +30,30 @@
         args="0 0 0 0 0 0 $(arg global_frame) base_measured">
     </node>
 
+    <!--
     <node pkg="tf2_ros" type="static_transform_publisher" name="foot_to_gps"
         args="0.1 0 0.36 0 0 0 $(arg base_frame) gps">
     </node>
+    -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="foot_to_gps"
+        args="0.08 0 0.75 0 0 0 $(arg base_frame) $(arg gps_frame)">
+    </node>
 
+    <!--
     <node pkg="tf2_ros" type="static_transform_publisher" name="foot_to_laser"
         args="0 0 0 0 0 0 base_footprint laser">
+    </node>
+    -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="foot_to_laser"
+        args="0.08 0 0.65 0 0 0 $(arg base_frame) laser">
     </node>
 
     <arg name="no_static_map" default="false"/>
     <!-- move base -->
     <arg name="move_base" default="true"/>
     <node pkg="move_base" type="move_base" name="move_base" respawn="false" output="screen" if="$(arg move_base)">
-        <remap from="odom"     to="/guidebot/odometry/filtered"/>
-        <!-- <remap from="odom"      to="/odometry/filtered"/> -->
+        <!-- <remap from="odom"     to="/guidebot/odometry/filtered"/> -->
+        <remap from="odom"      to="/odometry/filtered"/>
         <remap from="cmd_vel"   to="/cmd_vel"/>
         <param name="global_costmap/global_frame"     value="$(arg global_frame)"/>
         <param name="global_costmap/robot_base_frame" value="$(arg base_frame)"/>

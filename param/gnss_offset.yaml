@@ -2,9 +2,12 @@
 # experiment basic
 #origin_lat: 33.59554271426774
 #origin_lng: 130.21900769548205
-origin_lat: 33.595542
-origin_lng: 130.219007
-angle_offset: 42.84752885475223
+#origin_lat: 33.595542
+#origin_lng: 130.219007
+#angle_offset: 42.84752885475223
+origin_lat: 33.2401315617
+origin_lng: 130.616078625
+angle_offset: -125.0
 ##scale_offset: 1.0002455054972383
 scale_offset: 1.000
 
