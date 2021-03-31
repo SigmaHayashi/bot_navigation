@@ -1,23 +1,38 @@
 
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(bot_navigation)
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
-  tf
-  std_msgs
-  geometry_msgs
-  sensor_msgs
-  nav_msgs
-  visualization_msgs
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
-  message_generation
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+#find_package(catkin REQUIRED COMPONENTS
+#  roscpp
+#  rospy
+#  tf
+#  std_msgs
+#  geometry_msgs
+#  sensor_msgs
+#  nav_msgs
+#  visualization_msgs
+
+#  message_generation
   
   ## ublox_msgs
-)
+#)
 
-find_package(Boost REQUIRED COMPONENTS thread)
+#find_package(Boost REQUIRED COMPONENTS thread)
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 #add_message_files(
 #  FILES
@@ -25,10 +40,16 @@ find_package(Boost REQUIRED COMPONENTS thread)
 #  nucleo_serial.msg
 #)
 
-add_message_files(
-  FILES
-  nav_manager_command.msg
-  nav_manager_status.msg
+#add_message_files(
+#  FILES
+#  nav_manager_command.msg
+#  nav_manager_status.msg
+#)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/NavManagerCommand.msg"
+  "msg/NavManagerStatus.msg"
+  DEPENDENCIES std_msgs geometry_msgs
 )
 
 #add_service_files(
@@ -36,19 +57,34 @@ add_message_files(
 #  nav_command.srv
 #)
 
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
+#generate_messages(
+#  DEPENDENCIES
+#  std_msgs
+#  geometry_msgs
+#)
+
+#catkin_package(
+#   CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
+#)
+
+#include_directories(
+#  include
+#  ${catkin_INCLUDE_DIRS}
+#  ${BOOST_INCLUDE_DIRS}
+#)
+
+install(PROGRAMS
+  scripts/cancel_navigation
+  scripts/latlng2pos
+  scripts/pos2latlng
+  scripts/lawnmower_odometry
+  scripts/navigation_manager
+  DESTINATION lib/${PROJECT_NAME}
 )
 
-catkin_package(
-   CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
 )
 
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-  ${BOOST_INCLUDE_DIRS}
-)
-
+ament_package()
