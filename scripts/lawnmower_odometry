@@ -1,8 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import rospy
+#import rospy
+import rclpy
 import math 
-import tf
+#import tf
+import tf2_ros
+#import tf_conversions
+
+import numpy as np
+import quaternion
 
 from math import cos, sin, sqrt, pi
 
@@ -11,13 +17,30 @@ from std_msgs.msg import String
 from std_msgs.msg import Float64
 
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import TransformStamped
 
-class OdometryClass:
+#class OdometryClass:
+class OdometryClass(rclpy.node.Node):
   def __init__(self):
 
-    self.odom_frame = rospy.get_param('~odom_frame_id', 'odom')
-    self.base_frame = rospy.get_param('~base_frame_id', 'base_footprint')
-    self.print_tf   = rospy.get_param('~print_tf', False)
+    super().__init__("odom_tf")
+
+    self.declare_parameter('odom_frame_id', 'odom')
+    self.declare_parameter('base_frame_id', 'base_footprint')
+    self.declare_parameter('print_tf', False)
+    self.declare_parameter('pub_odom_topic_name', 'pub_odom')
+    self.declare_parameter('sub_odom_topic_name', 'sub_odom')
+
+    #self.odom_frame = rospy.get_param('~odom_frame_id', 'odom')
+    #self.base_frame = rospy.get_param('~base_frame_id', 'base_footprint')
+    #self.print_tf   = rospy.get_param('~print_tf', False)
+    #self.odom_frame = self.get_parameter_or('~odom_frame_id', 'odom')
+    #self.base_frame = self.get_parameter_or('~base_frame_id', 'base_footprint')
+    #self.print_tf   = self.get_parameter_or('~print_tf', False)
+    self.odom_frame = self.get_parameter('odom_frame_id').get_parameter_value().string_value
+    self.base_frame = self.get_parameter('base_frame_id').get_parameter_value().string_value
+    self.print_tf   = self.get_parameter('print_tf').get_parameter_value().bool_value
+
     """
     self.radius    = rospy.get_param('~wheel_radius', 0.123) # タイヤの半径(人が乗った場合 ： 0.123, 手で押す場合 : 0.129)
     self.tread     = rospy.get_param('~wheel_tread',  0.485) # タイヤ間距離
@@ -26,8 +49,11 @@ class OdometryClass:
     
     self.odom_pub    = rospy.Publisher(rospy.get_param('~odom_topic_name', 'odom'), Odometry, queue_size=1000)
     """
-    self.odom_pub    = rospy.Publisher(rospy.get_param('~odom_topic_name', 'odom'), Odometry, queue_size=1000)
-    self.broadcaster = tf.TransformBroadcaster()
+    #self.odom_pub    = rospy.Publisher(rospy.get_param('~odom_topic_name', 'odom'), Odometry, queue_size=1000)
+    #self.odom_pub = self.create_publisher(Odometry, self.get_parameter_or('~pub_odom_topic_name', 'pub_odom'), 1000)
+    self.odom_pub = self.create_publisher(Odometry, self.get_parameter('pub_odom_topic_name').get_parameter_value().string_value, 1000)
+    #self.broadcaster = tf.TransformBroadcaster()
+    self.broadcaster =  tf2_ros.TransformBroadcaster(self)
 
     self.position_x = 0.0
     self.position_y = 0.0
@@ -37,17 +63,23 @@ class OdometryClass:
     # rospy.Subscriber('wheel_radius', Float64, self.callback_radius, queue_size=1)
     # rospy.Subscriber('wheel_tread',  Float64, self.callback_tread,  queue_size=1)
     
-    rospy.Subscriber(rospy.get_param('~sub_odom_topic_name', 'sub_odom'), Odometry, self.callback_odom, queue_size=1000)
+    #rospy.Subscriber(rospy.get_param('~sub_odom_topic_name', 'sub_odom'), Odometry, self.callback_odom, queue_size=1000)
+    #self.create_subscription(Odometry, self.get_parameter_or('~sub_odom_topic_name', 'sub_odom'), self.callback_odom, 1000)
+    self.create_subscription(Odometry, self.get_parameter('sub_odom_topic_name').get_parameter_value().string_value, self.callback_odom, 1000)
   
   def callback_odom(self, data):
 
     while data.pose.pose.orientation.z >  pi: data.pose.pose.orientation.z -= 2.0 * pi
     while data.pose.pose.orientation.z < -pi: data.pose.pose.orientation.z += 2.0 * pi
 
-    quate = tf.transformations.quaternion_from_euler(0.0, 0.0, data.pose.pose.orientation.z)
+    #quate = tf.transformations.quaternion_from_euler(0.0, 0.0, data.pose.pose.orientation.z)
+    #quate = tf2_ros.quaternion_from_euler(0.0, 0.0, data.pose.pose.orientation.z)
+    #quate = tf_conversions.transformations.quaternion_from_euler(0.0, 0.0, data.pose.pose.orientation.z)
+    quate = quaternion.from_euler_angles([0.0, 0.0, data.pose.pose.orientation.z])
     
     odom                         = Odometry()
-    odom.header.stamp            = rospy.Time.now()
+    #odom.header.stamp            = rospy.Time.now()
+    odom.header.stamp            = self.get_clock().now().to_msg()
     odom.header.frame_id         = self.odom_frame
     odom.child_frame_id          = self.base_frame
     #odom.pose.pose.position.x    = data.pose.pose.position.x
@@ -59,13 +91,17 @@ class OdometryClass:
     odom.pose.pose.orientation.z = data.pose.pose.orientation.z
     odom.pose.pose.orientation.w = data.pose.pose.orientation.w
     """
-    
+    '''
     odom.pose.pose.orientation.x = quate[0]
     odom.pose.pose.orientation.y = quate[1]
     odom.pose.pose.orientation.z = quate[2]
     odom.pose.pose.orientation.w = quate[3]
+    '''
+    odom.pose.pose.orientation.x = quate.x
+    odom.pose.pose.orientation.y = quate.y
+    odom.pose.pose.orientation.z = quate.z
+    odom.pose.pose.orientation.w = quate.w
     
-
     odom.twist.twist.linear.x    = data.twist.twist.linear.x 
     odom.twist.twist.angular.z   = data.twist.twist.angular.z
    
@@ -73,15 +109,45 @@ class OdometryClass:
 
 
     if self.print_tf == True:
+      '''
       self.broadcaster.sendTransform( \
         (odom.pose.pose.position.x, odom.pose.pose.position.y, 0.0), quate, \
-        rospy.Time.now(), self.base_frame, self.odom_frame)
+        self.get_clock().now(), self.base_frame, self.odom_frame)
+        #rospy.Time.now(), self.base_frame, self.odom_frame)
+      '''
+      tf_stamped = TransformStamped()
+      tf_stamped.header.stamp = self.get_clock().now().to_msg()
+      #tf_stamped.header.frame_id = self.base_frame
+      #tf_stamped.child_frame_id = self.odom_frame
+      tf_stamped.header.frame_id = self.odom_frame
+      tf_stamped.child_frame_id = self.base_frame
+      tf_stamped.transform.translation.x = odom.pose.pose.position.x
+      tf_stamped.transform.translation.y = odom.pose.pose.position.y
+      tf_stamped.transform.translation.z = 0.0
+      tf_stamped.transform.rotation.x = quate.x
+      tf_stamped.transform.rotation.y = quate.y
+      tf_stamped.transform.rotation.z = quate.z
+      tf_stamped.transform.rotation.w = quate.w
+      self.broadcaster.sendTransform(tf_stamped)
+
 
 
 if __name__ == '__main__':
+  '''
   rospy.init_node('odom_tf', anonymous=True)
   try:
     OdometryClass()
     rospy.spin()
   except rospy.ROSInterruptException:
     rospy.loginfo("guidebot_odometry node finished.")
+  '''
+
+  try:
+    rclpy.init()
+    node = OdometryClass()
+    rclpy.spin(node)
+  except KeyboardInterrupt:
+    pass
+  finally:
+    node.destroy_node()
+    rclpy.shutdown()
