@@ -137,14 +137,14 @@ def generate_launch_description():
                 parameters=[nav2_param_file],
                 #remappings=remappings
             ),
-            #Node(
-            #    package='nav2_waypoint_follower',
-            #    executable='waypoint_follower',
-            #    name='waypoint_follower',
-            #    output='screen',
-            #    parameters=[nav2_param_file],
-            #    #remappings=remappings
-            #),
+            Node(
+                package='nav2_waypoint_follower',
+                executable='waypoint_follower',
+                name='waypoint_follower',
+                output='screen',
+                parameters=[nav2_param_file],
+                #remappings=remappings
+            ),
             Node(
                 package='nav2_lifecycle_manager',
                 executable='lifecycle_manager',
@@ -157,7 +157,7 @@ def generate_launch_description():
                         'planner_server',
                         'recoveries_server',
                         'bt_navigator',
-                        #'waypoint_follower'
+                        'waypoint_follower'
                     ]
                 }]
             )
