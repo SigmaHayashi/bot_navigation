@@ -104,6 +104,9 @@ class OdometryClass(rclpy.node.Node):
     
     odom.twist.twist.linear.x    = data.twist.twist.linear.x 
     odom.twist.twist.angular.z   = data.twist.twist.angular.z
+
+    #odom.twist.covariance[0] = 0.1
+    #odom.twist.covariance[35] = 0.1
    
     self.odom_pub.publish(odom)
 
