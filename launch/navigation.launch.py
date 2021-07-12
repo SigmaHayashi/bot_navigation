@@ -66,12 +66,12 @@ def generate_launch_description():
             name='world_to_map',
             arguments=['0', '0', '0', '0', '0', '0', 'world_link', global_frame]
         ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            name='map_to_measured',
-            arguments=['0', '0', '0', '0', '0', '0', global_frame, 'base_measured']
-        ),
+        #Node(
+        #    package='tf2_ros',
+        #    executable='static_transform_publisher',
+        #    name='map_to_measured',
+        #    arguments=['0', '0', '0', '0', '0', '0', global_frame, 'base_measured']
+        #),
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
@@ -158,5 +158,12 @@ def generate_launch_description():
                     'waypoint_follower'
                 ]
             }]
+        ),
+
+        # Cancel Navigation
+        Node(
+            package='bot_navigation',
+            executable='cancel_navigation_action',
+            output='screen'
         )
     ])

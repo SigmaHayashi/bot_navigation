@@ -133,7 +133,7 @@ ekf_filter_node:
         #odom0_pose_rejection_threshold: 5.0
         #odom0_twist_rejection_threshold: 1.0
 
-        odom1: odometry/qzss
+        odom1: odometry/gnss
         odom1_config: [true,  true,  false,
                        false, false, false,
                        false, false, false,

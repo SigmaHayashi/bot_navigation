@@ -75,7 +75,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 #)
 
 install(PROGRAMS
-  scripts/cancel_navigation
+  #scripts/cancel_navigation
+  scripts/cancel_navigation_action
+  scripts/cancel_navigation_trigger
   scripts/latlng2pos
   scripts/pos2latlng
   scripts/lawnmower_odometry

@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+
+import rclpy
+from rclpy.node import Node
+
+from rclpy.action import ActionClient
+from std_msgs.msg import Empty
+
+from nav2_msgs.action import NavigateToPose
+
+import readchar
+
+class CancelNavigationClass(Node):
+    def __init__(self):
+        super().__init__('cancel_navigation')
+
+        self.action_client = ActionClient(self, NavigateToPose, '/navigate_to_pose')
+
+        self.create_subscription(Empty, 'cancel_trigger', self.cancel_navigation, 1)
+
+        self.get_logger().info('Start: cancel_navigation')
+
+    def send_goal(self):
+        msg = NavigateToPose.Goal()
+        msg.pose.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.header.frame_id = 'map'
+        msg.pose.pose.position.x = 0.0
+        msg.pose.pose.position.y = 0.0
+        msg.pose.pose.orientation.x = 0.0
+        msg.pose.pose.orientation.y = 0.0
+        msg.pose.pose.orientation.z = 0.0
+        msg.pose.pose.orientation.w = 1.0
+
+        self.action_client.wait_for_server()
+
+        self.send_goal_future = self.action_client.send_goal_async(msg)
+        #self.send_goal_future = self.action_client.send_goal_async(msg, feedback_callback=self.callback_feedback)
+        self.send_goal_future.add_done_callback(self.callback_goal_responce)
+
+    def callback_goal_responce(self, future):
+        self.goal_handle = future.result()
+        if not self.goal_handle.accepted:
+            #self.get_logger().info('Goal Rejected...')
+            return
+
+        #self.get_logger().info('Goal Accepted')
+
+        self.goal_handle.cancel_goal_async()
+        
+        #self.get_result_future = self.goal_handle.get_result_async()
+        #self.get_result_future.add_done_callback(self.callback_result)
+
+    #def callback_feedback(self, feedback): # Action実行中ずっと呼ばれる
+    #    self.get_logger().info('Distance remain: {0}'.format(feedback.feedback.distance_remaining))
+    #    self.get_logger().info('Navigation time: {0}.{1}'.format(feedback.feedback.navigation_time.sec, feedback.feedback.navigation_time.nanosec))
+
+    #    if feedback.feedback.navigation_time.sec >= 3: # ３秒後に止める
+    #        self.get_logger().info('Cancel Trigger')
+    #        self.goal_handle.cancel_goal_async()
+
+    #def callback_result(self, future): # 終了時に呼ばれる
+    #    result = future.result().result
+    #    self.get_logger().info('Finish')
+    #    #self.get_logger().info('Result: {0}'.format(result.sequence))
+
+    def cancel_navigation(self, data):
+        self.get_logger().info('Cancel')
+        self.send_goal()
+
+if __name__ == '__main__':
+    rclpy.init()
+
+    node = CancelNavigationClass()
+    #node.send_goal()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        node.destroy_node()
+        rclpy.shutdown()
+        
+
