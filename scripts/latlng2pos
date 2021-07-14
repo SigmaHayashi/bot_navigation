@@ -1,6 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-import rospy
+#import rospy
+import rclpy
+from rclpy.node import Node
+from rclpy.time import Duration
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix
 from visualization_msgs.msg import Marker
@@ -8,10 +11,17 @@ from visualization_msgs.msg import Marker
 import math 
 import pyproj
 
-class LatLng2Pos:
+class LatLng2Pos(Node):
   def __init__(self):
-    self.wgs84 = pyproj.Proj(init='EPSG:4326')
-    self.rect6 = pyproj.Proj(init='EPSG:2444')
+    super().__init__('latlng2pos')
+
+    #self.wgs84 = pyproj.Proj(init='EPSG:4326')
+    #self.rect6 = pyproj.Proj(init='EPSG:2444')
+    #self.wgs84 = pyproj.Proj('EPSG:4326')
+    #self.rect6 = pyproj.Proj('EPSG:2444')
+    self.proj_transformer = pyproj.Transformer.from_crs('EPSG:4326', 'EPSG:2444', always_xy=True)
+
+    '''
     self.map_frame = rospy.get_param('~map_frame_name', 'map')
     self.odom_frame = rospy.get_param('~odom_frame_name', 'odom')
     self.marker_flag = rospy.get_param('~visualization_marker', False)
@@ -25,19 +35,46 @@ class LatLng2Pos:
     self.scale_offset = rospy.get_param('~scale_offset', 1.)
     # self.earth_rad = rospy.get_param('~earth_rad', 6378.137)
     self.solutions_flag = rospy.get_param('~solutions_flag', "all")
+    '''
+    self.map_frame = self.declare_parameter('map_frame_name', 'map').get_parameter_value().string_value
+    self.odom_frame = self.declare_parameter('odom_frame_name', 'odom').get_parameter_value().string_value
+    self.marker_flag = self.declare_parameter('visualization_marker', False).get_parameter_value().bool_value
+    self.fix_value = self.declare_parameter('fix_value', 1).get_parameter_value().integer_value
+    self.float_value = self.declare_parameter('float_value', 0).get_parameter_value().integer_value
+    
+    self.origin_lat = self.declare_parameter('origin_lat', 33.0).get_parameter_value().double_value
+    self.origin_lng = self.declare_parameter('origin_lng', 130.0).get_parameter_value().double_value
+    self.angle_offset = self.declare_parameter('angle_offset', 0.0).get_parameter_value().double_value * math.pi / 180.0
+    self.scale_offset = self.declare_parameter('scale_offset', 1.0).get_parameter_value().double_value
+    self.solutions_flag = self.declare_parameter('solutions_flag', 'all').get_parameter_value().string_value
+
+    self.odom_topic_name = self.declare_parameter('odom_topic_name', 'odom').get_parameter_value().string_value
+    self.marker_topic_name = self.declare_parameter('marker_topic_name', 'gnss_position_marker').get_parameter_value().string_value
+    self.nav_sat_fix_topic_name = self.declare_parameter('nav_sat_fix_topic_name', 'fix').get_parameter_value().string_value
 
     # self.fix_pub   = rospy.Publisher("ublox_gps/navrelposned/fix",   NavRELPOSNED, queue_size=10)
     # self.float_pub = rospy.Publisher("ublox_gps/navrelposned/float", NavRELPOSNED, queue_size=10)
-    self.odom_pub = rospy.Publisher(rospy.get_param('~odom_topic_name', 'odom'), Odometry, queue_size=10)
+    #self.odom_pub = rospy.Publisher(rospy.get_param('~odom_topic_name', 'odom'), Odometry, queue_size=10)
+    self.odom_pub = self.create_publisher(Odometry, self.odom_topic_name, 10)
+
     if self.marker_flag == True:
-      self.marker_pub = rospy.Publisher(rospy.get_param('~marker_topic_name', 'gnss_position_marker'), Marker, queue_size=10)
-    rospy.Subscriber(rospy.get_param('~nav_sat_fix_topic_name', 'fix'), NavSatFix, self.callback_latlng2pos, queue_size=10)
+      #self.marker_pub = rospy.Publisher(rospy.get_param('~marker_topic_name', 'gnss_position_marker'), Marker, queue_size=10)
+      self.marker_pub = self.create_publisher(Marker, self.marker_topic_name, 10)
+
+    #rospy.Subscriber(rospy.get_param('~nav_sat_fix_topic_name', 'fix'), NavSatFix, self.callback_latlng2pos, queue_size=10)
+    self.create_subscription(NavSatFix, self.nav_sat_fix_topic_name, self.callback_latlng2pos, 10)
+
+    self.get_logger().info('Node Start: LatLng2Pos')
+
+    self.x_origin, self.y_origin = self.proj_transformer.transform(self.origin_lng, self.origin_lat)
   
   def _latlng2xy(self, lat, lng):
-    x_origin, y_origin = pyproj.transform(self.wgs84, self.rect6, self.origin_lng, self.origin_lat)
-    x_ref, y_ref = pyproj.transform(self.wgs84, self.rect6, lng, lat)
-    tx = math.cos(self.angle_offset) * (x_ref - x_origin) - math.sin(self.angle_offset) * (y_ref - y_origin)
-    ty = math.sin(self.angle_offset) * (x_ref - x_origin) + math.cos(self.angle_offset) * (y_ref - y_origin)
+    #x_origin, y_origin = pyproj.transform(self.wgs84, self.rect6, self.origin_lng, self.origin_lat)
+    #x_ref, y_ref = pyproj.transform(self.wgs84, self.rect6, lng, lat)
+    #x_origin, y_origin = self.proj_transformer.transform(self.origin_lng, self.origin_lat)
+    x_ref, y_ref = self.proj_transformer.transform(lng, lat)
+    tx = math.cos(self.angle_offset) * (x_ref - self.x_origin) - math.sin(self.angle_offset) * (y_ref - self.y_origin)
+    ty = math.sin(self.angle_offset) * (x_ref - self.x_origin) + math.cos(self.angle_offset) * (y_ref - self.y_origin)
     x = tx * self.scale_offset
     y = ty * self.scale_offset
     return x, y
@@ -54,7 +91,7 @@ class LatLng2Pos:
       marker_msg.header.stamp = data.header.stamp
 
       marker_msg.ns = "GNSS_Pos"
-      marker_msg.id = data.header.seq
+      #marker_msg.id = data.header.seq
 
       marker_msg.action = Marker.ADD
 
@@ -86,7 +123,8 @@ class LatLng2Pos:
       marker_msg.scale.y = 0.2
       marker_msg.scale.z = 1.0
 
-      marker_msg.lifetime = rospy.Duration()
+      #marker_msg.lifetime = rospy.Duration()
+      marker_msg.lifetime = Duration().to_msg()
 
       marker_msg.type =  Marker.CYLINDER
 
@@ -107,30 +145,37 @@ class LatLng2Pos:
     odom.pose.pose.orientation.z = 0.0
     odom.pose.pose.orientation.w = 1.0
     
-    print("LatLngPos")
+    print("LatLng -> Pos", end=' ')
     if self.solutions_flag == "all":
       self.odom_pub.publish(odom)
-      print("|----[All] : All solutions are being published")
+      print("[All] : All solutions are being published")
     elif self.solutions_flag == "fix":
       if data.status.status == self.fix_value:
         self.odom_pub.publish(odom)
-        print("|----[Fix] : Fix solutions are being published")
+        print("[Fix] : Fix solutions are being published")
       else:
-        print("|----Selected flag is [fix], however solutions are not fix")
+        print("Selected flag is [fix], however solutions are not fix")
     elif self.solutions_flag == "float":
       if data.status.status == self.fix_value or data.status.status == self.float_value:
         self.odom_pub.publish(odom)
-        print("|----[Float] : Fix and Float solutions are being published")
+        print("[Float] : Fix and Float solutions are being published")
       else:
-        print("|----Selected flag is [float], however solutions are not foat")
+        print("Selected flag is [float], however solutions are not foat")
     else:
-      print("|----Invalid Solutions Flag")
+      print("Invalid Solutions Flag")
 
 
 if __name__ == '__main__':
-  rospy.init_node('LatLng2Pos', anonymous=True)
+  #rospy.init_node('LatLng2Pos', anonymous=True)
   try:
-    LatLng2Pos()
-    rospy.spin()
-  except rospy.ROSInterruptException:
-    rospy.loginfo("LatLng2Pos node finished.")
+    #LatLng2Pos()
+    #rospy.spin()
+    rclpy.init()
+    node = LatLng2Pos()
+    rclpy.spin(node)
+  #except rospy.ROSInterruptException:
+  except KeyboardInterrupt:
+    #rospy.loginfo("LatLng2Pos node finished.")
+    node.get_logger().info('Node Finish: LatLng2Pos')
+    node.destroy_node()
+    rclpy.shutdown()
