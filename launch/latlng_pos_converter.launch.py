@@ -4,8 +4,8 @@ from launch_ros.actions import Node
 
 #offset_param_file = '/home/common/ros2_ws/src/bot_navigation/param/gnss_offset.yaml'
 
-origin_lat = 33.595649
-origin_lng = 130.219383
+origin_lat = 33.595542
+origin_lng = 130.219007
 angle_offset = 42.85
 scale_offset = 1.0
 

@@ -111,7 +111,8 @@ controller_server:
       plugin: "nav2_controller::SimpleGoalChecker"
       #xy_goal_tolerance: 0.25
       xy_goal_tolerance: 0.5
-      yaw_goal_tolerance: 0.25
+      #yaw_goal_tolerance: 0.25
+      yaw_goal_tolerance: 0.35
       #yaw_goal_tolerance: 0.5
       stateful: True
     # DWB parameters
@@ -139,10 +140,12 @@ controller_server:
       acc_lim_theta: 2.0
       #acc_lim_theta: 3.0
       #decel_lim_x: -2.5
-      decel_lim_x: -1.0
+      #decel_lim_x: -1.0
+      decel_lim_x: -0.2
       decel_lim_y: 0.0
       ##decel_lim_theta: -3.2
-      decel_lim_theta: -2.0
+      #decel_lim_theta: -2.0
+      decel_lim_theta: -0.3
       #decel_lim_theta: -0.1
       #decel_lim_theta: -3.0
       #vx_samples: 20
